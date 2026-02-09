@@ -4,5 +4,9 @@ import tailwindcss from '@tailwindcss/vite'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  base: '/magical-closet/', // 確保路徑與你的 GitHub 專案名稱一致
+  plugins: [
+    react(),
+    tailwindcss()
+  ],
 })
