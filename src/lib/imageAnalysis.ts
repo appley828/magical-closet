@@ -219,6 +219,11 @@ export async function analyzeClothingWithAI(
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       console.error('API 錯誤回應:', errorData);
+      if (response.status === 429) {
+        throw new Error('API 免費額度已用完，請稍後再試或更換 API Key');
+      } else if (response.status === 403 || response.status === 401) {
+        throw new Error('API Key 無效或已過期，請重新設定');
+      }
       throw new Error(errorData.error?.message || `API 請求失敗: ${response.status}`);
     }
 

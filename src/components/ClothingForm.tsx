@@ -98,7 +98,7 @@ export default function ClothingForm({ initialData, onSubmit, onCancel, isLoadin
 
     } catch (err) {
       console.error('分析失敗:', err);
-      setAnalysisError('AI 分析失敗，請確認 API Key 是否正確');
+      setAnalysisError(err instanceof Error ? err.message : 'AI 分析失敗，請稍後再試');
     } finally {
       setIsAnalyzing(false);
     }
