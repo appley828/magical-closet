@@ -6,7 +6,7 @@ import OutfitPage from './pages/OutfitPage';
 
 function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/magical-closet">
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/add" element={<AddClothingPage />} />
