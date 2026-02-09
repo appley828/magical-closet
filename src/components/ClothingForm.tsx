@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { Clothing } from '../types';
-import { CATEGORY_OPTIONS, SIZE_OPTIONS, MATERIAL_OPTIONS, COLOR_PRESETS, CATEGORY_GROUPS } from '../lib/constants';
+import { CATEGORY_OPTIONS, SIZE_OPTIONS, MATERIAL_OPTIONS, COLOR_PRESETS, COLOR_PALETTE, CATEGORY_GROUPS } from '../lib/constants';
 import { extractDominantColor, analyzeClothingWithAI, getGeminiApiKey, setGeminiApiKey } from '../lib/imageAnalysis';
 import ImageUploader from './ImageUploader';
 
@@ -28,6 +28,7 @@ export default function ClothingForm({ initialData, onSubmit, onCancel, isLoadin
   const [customSize, setCustomSize] = useState('');
   const [customMaterial, setCustomMaterial] = useState('');
   const [showCustomColor, setShowCustomColor] = useState(false);
+  const [customHexInput, setCustomHexInput] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
@@ -286,6 +287,7 @@ export default function ClothingForm({ initialData, onSubmit, onCancel, isLoadin
           <label className="block text-sm font-medium text-gray-700 mb-2">
             顏色 *
           </label>
+          {/* 常用顏色 */}
           <div className="flex flex-wrap gap-2 mb-2">
             {COLOR_PRESETS.map((preset) => (
               <button
@@ -304,20 +306,79 @@ export default function ClothingForm({ initialData, onSubmit, onCancel, isLoadin
             <button
               type="button"
               onClick={() => setShowCustomColor(!showCustomColor)}
-              className="w-8 h-8 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 hover:border-pink-300 hover:text-pink-400"
-              title="自訂顏色"
+              className={`w-8 h-8 rounded-full border-2 border-dashed flex items-center justify-center transition-colors ${
+                showCustomColor
+                  ? 'border-pink-400 text-pink-400 bg-pink-50'
+                  : 'border-gray-300 text-gray-400 hover:border-pink-300 hover:text-pink-400'
+              }`}
+              title="更多顏色"
             >
-              +
+              {showCustomColor ? '−' : '+'}
             </button>
           </div>
+
+          {/* 展開色板 */}
           {showCustomColor && (
-            <input
-              type="color"
-              value={formData.color}
-              onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-              className="w-full h-10 rounded-lg cursor-pointer"
-            />
+            <div className="border border-gray-200 rounded-lg p-3 mb-2 space-y-2">
+              {COLOR_PALETTE.map((row) => (
+                <div key={row.group} className="flex items-center gap-1">
+                  <span className="text-xs text-gray-400 w-12 shrink-0 text-right pr-1">{row.group}</span>
+                  <div className="flex gap-1 flex-wrap">
+                    {row.colors.map((color) => (
+                      <button
+                        key={color}
+                        type="button"
+                        onClick={() => handleColorSelect(color)}
+                        className={`w-7 h-7 rounded border transition-transform hover:scale-125 ${
+                          formData.color === color
+                            ? 'border-pink-400 ring-2 ring-pink-200'
+                            : 'border-gray-200'
+                        }`}
+                        style={{ backgroundColor: color }}
+                        title={color}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+              {/* 自訂色碼輸入 */}
+              <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
+                <span className="text-xs text-gray-400">自訂色碼</span>
+                <input
+                  type="text"
+                  value={customHexInput}
+                  onChange={(e) => setCustomHexInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      const hex = customHexInput.startsWith('#') ? customHexInput : `#${customHexInput}`;
+                      if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
+                        handleColorSelect(hex.toUpperCase());
+                        setCustomHexInput('');
+                      }
+                    }
+                  }}
+                  placeholder="#FF5733"
+                  className="w-24 px-2 py-1 text-sm border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-pink-300"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const hex = customHexInput.startsWith('#') ? customHexInput : `#${customHexInput}`;
+                    if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
+                      handleColorSelect(hex.toUpperCase());
+                      setCustomHexInput('');
+                    }
+                  }}
+                  className="px-2 py-1 text-xs bg-pink-100 text-pink-600 rounded hover:bg-pink-200 transition-colors"
+                >
+                  確定
+                </button>
+              </div>
+            </div>
           )}
+
+          {/* 已選顏色預覽 */}
           <div className="mt-1 flex items-center gap-2 text-sm text-gray-500">
             <span>已選擇：</span>
             <span

@@ -29,14 +29,9 @@ export const CATEGORY_OPTIONS: CategoryOption[] = [
 ];
 
 export const SIZE_OPTIONS: { value: ClothingSize; label: string }[] = [
-  { value: '120', label: '120 (7歲)' },
   { value: '130', label: '130 (8-9歲)' },
   { value: '140', label: '140 (9-10歲)' },
   { value: '150', label: '150 (10-11歲)' },
-  { value: '160', label: '160 (11-12歲)' },
-  { value: 'S', label: 'S' },
-  { value: 'M', label: 'M' },
-  { value: 'L', label: 'L' },
 ];
 
 export const MATERIAL_OPTIONS: { value: ClothingMaterial; label: string }[] = [
@@ -65,6 +60,46 @@ export const COLOR_PRESETS = [
   { value: '#F5F5DC', label: '米色' },
   { value: '#FFD700', label: '金色' },
   { value: '#C0C0C0', label: '銀色' },
+];
+
+// Comprehensive color palette organized by hue rows (light → dark)
+export const COLOR_PALETTE: { group: string; colors: string[] }[] = [
+  {
+    group: '紅色系',
+    colors: ['#FFCDD2', '#EF9A9A', '#E57373', '#EF5350', '#F44336', '#E53935', '#D32F2F', '#B71C1C'],
+  },
+  {
+    group: '橘色系',
+    colors: ['#FFE0B2', '#FFCC80', '#FFB74D', '#FFA726', '#FF9800', '#FB8C00', '#F57C00', '#E65100'],
+  },
+  {
+    group: '黃色系',
+    colors: ['#FFF9C4', '#FFF176', '#FFEE58', '#FFEB3B', '#FDD835', '#FBC02D', '#F9A825', '#F57F17'],
+  },
+  {
+    group: '綠色系',
+    colors: ['#C8E6C9', '#A5D6A7', '#81C784', '#66BB6A', '#4CAF50', '#43A047', '#2E7D32', '#1B5E20'],
+  },
+  {
+    group: '藍色系',
+    colors: ['#BBDEFB', '#90CAF9', '#64B5F6', '#42A5F5', '#2196F3', '#1E88E5', '#1565C0', '#0D47A1'],
+  },
+  {
+    group: '紫色系',
+    colors: ['#E1BEE7', '#CE93D8', '#BA68C8', '#AB47BC', '#9C27B0', '#8E24AA', '#7B1FA2', '#4A148C'],
+  },
+  {
+    group: '粉色系',
+    colors: ['#F8BBD0', '#F48FB1', '#F06292', '#EC407A', '#E91E63', '#D81B60', '#C2185B', '#880E4F'],
+  },
+  {
+    group: '棕色系',
+    colors: ['#D7CCC8', '#BCAAA4', '#A1887F', '#8D6E63', '#795548', '#6D4C41', '#5D4037', '#3E2723'],
+  },
+  {
+    group: '灰色系',
+    colors: ['#FFFFFF', '#F5F5F5', '#E0E0E0', '#BDBDBD', '#9E9E9E', '#757575', '#424242', '#000000'],
+  },
 ];
 
 export const OCCASION_OPTIONS = [

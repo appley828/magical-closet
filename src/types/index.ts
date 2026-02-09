@@ -14,7 +14,7 @@ export type ClothingCategory =
   // 其他
   | string;
 
-export type ClothingSize = '120' | '130' | '140' | '150' | '160' | 'S' | 'M' | 'L' | string;
+export type ClothingSize = '130' | '140' | '150' | string;
 
 export type ClothingMaterial = '棉' | '聚酯纖維' | '尼龍' | '羊毛' | '牛仔布' | '針織' | '混紡' | string;
 
