@@ -30,4 +30,6 @@ jobs:
       - name: Deploy
         uses: JamesIves/github-pages-deploy-action@v4
         with:
-          folder: dist # Vite 編譯後的資料夾
+          folder: dist          # Vite 編譯後的資料夾
+          branch: gh-pages      # 強制將編譯後的檔案推送到這個分支
+          clean: true           # 每次部署時清理舊檔案，避免衝突
