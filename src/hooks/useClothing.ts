@@ -62,8 +62,8 @@ export function useClothing() {
 
       let imageUrl = data.imageUrl;
       if (imageFile) {
-        // 壓縮圖片並轉換為 Base64
-        imageUrl = await compressImageToBase64(imageFile);
+        const hasTransparency = imageFile.type === 'image/png';
+        imageUrl = await compressImageToBase64(imageFile, { preserveTransparency: hasTransparency });
       }
 
       const docRef = await addDoc(collection(db, COLLECTION_NAME), {
@@ -89,8 +89,8 @@ export function useClothing() {
 
       const updateData = { ...data };
       if (imageFile) {
-        // 壓縮圖片並轉換為 Base64
-        updateData.imageUrl = await compressImageToBase64(imageFile);
+        const hasTransparency = imageFile.type === 'image/png';
+        updateData.imageUrl = await compressImageToBase64(imageFile, { preserveTransparency: hasTransparency });
       }
 
       const docRef = doc(db, COLLECTION_NAME, id);

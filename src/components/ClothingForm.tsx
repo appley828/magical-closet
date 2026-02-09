@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import type { Clothing } from '../types';
 import { CATEGORY_OPTIONS, SIZE_OPTIONS, MATERIAL_OPTIONS, COLOR_PRESETS, COLOR_PALETTE, CATEGORY_GROUPS } from '../lib/constants';
 import { extractDominantColor, analyzeClothingWithAI, getGeminiApiKey, setGeminiApiKey } from '../lib/imageAnalysis';
+import { removeImageBackground, blobToDataURL } from '../lib/backgroundRemoval';
 import ImageUploader from './ImageUploader';
 
 interface ClothingFormProps {
@@ -34,6 +35,9 @@ export default function ClothingForm({ initialData, onSubmit, onCancel, isLoadin
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [apiKeyInput, setApiKeyInput] = useState('');
   const [hasApiKey, setHasApiKey] = useState(false);
+  const [isRemovingBg, setIsRemovingBg] = useState(false);
+  const [bgRemovalProgress, setBgRemovalProgress] = useState(0);
+  const [bgRemoved, setBgRemoved] = useState(false);
 
   useEffect(() => {
     setHasApiKey(!!getGeminiApiKey());
@@ -42,6 +46,7 @@ export default function ClothingForm({ initialData, onSubmit, onCancel, isLoadin
   const handleImageSelect = async (file: File) => {
     setImageFile(file);
     setAnalysisError(null);
+    setBgRemoved(false);
 
     // 建立預覽
     const reader = new FileReader();
@@ -105,6 +110,41 @@ export default function ClothingForm({ initialData, onSubmit, onCancel, isLoadin
     }
   };
 
+  const handleRemoveBackground = async () => {
+    const imageSource = imagePreview || formData.imageUrl;
+    if (!imageSource) return;
+
+    setIsRemovingBg(true);
+    setBgRemovalProgress(0);
+
+    try {
+      const resultBlob = await removeImageBackground(imageSource, (progress) => {
+        setBgRemovalProgress(progress);
+      });
+
+      const dataUrl = await blobToDataURL(resultBlob);
+      setImagePreview(dataUrl);
+
+      // Create a new PNG File to replace the current imageFile
+      const pngFile = new File([resultBlob], 'clothing-nobg.png', { type: 'image/png' });
+      setImageFile(pngFile);
+      setBgRemoved(true);
+
+      // Re-extract color from the processed image
+      try {
+        const colorResult = await extractDominantColor(dataUrl);
+        setFormData(prev => ({ ...prev, color: colorResult.hex }));
+      } catch (err) {
+        console.warn('去背後顏色偵測失敗:', err);
+      }
+    } catch (err) {
+      console.error('去背失敗:', err);
+      setAnalysisError('去背處理失敗，請稍後再試');
+    } finally {
+      setIsRemovingBg(false);
+    }
+  };
+
   const handleSaveApiKey = () => {
     if (apiKeyInput.trim()) {
       setGeminiApiKey(apiKeyInput.trim());
@@ -148,7 +188,7 @@ export default function ClothingForm({ initialData, onSubmit, onCancel, isLoadin
           />
         </div>
 
-        {/* 智慧分析按鈕 */}
+        {/* 智慧分析 & 去背按鈕 */}
         {(imageFile || formData.imageUrl) && (
           <div className="flex flex-col gap-2">
             <button
@@ -171,6 +211,40 @@ export default function ClothingForm({ initialData, onSubmit, onCancel, isLoadin
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                   </svg>
                   智慧辨識
+                </>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={handleRemoveBackground}
+              disabled={isRemovingBg || bgRemoved}
+              className={`w-full px-4 py-3 text-white rounded-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2 ${
+                bgRemoved
+                  ? 'bg-green-500'
+                  : 'bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600'
+              }`}
+            >
+              {isRemovingBg ? (
+                <>
+                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  去背中... {bgRemovalProgress}%
+                </>
+              ) : bgRemoved ? (
+                <>
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  已去背完成
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  自動去背
                 </>
               )}
             </button>

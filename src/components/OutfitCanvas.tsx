@@ -7,9 +7,10 @@ interface OutfitCanvasProps {
   items: (OutfitItem & { clothing: Clothing })[];
   onRemoveItem: (clothingId: string) => void;
   onUpdatePosition: (clothingId: string, x: number, y: number) => void;
+  onUpdateScale?: (clothingId: string, scale: number) => void;
 }
 
-export default function OutfitCanvas({ items, onRemoveItem }: OutfitCanvasProps) {
+export default function OutfitCanvas({ items, onRemoveItem, onUpdateScale }: OutfitCanvasProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: 'outfit-canvas',
   });
@@ -46,12 +47,13 @@ export default function OutfitCanvas({ items, onRemoveItem }: OutfitCanvasProps)
           position={{ x: item.x, y: item.y }}
           scale={item.scale}
           onRemove={() => onRemoveItem(item.clothingId)}
+          onScaleChange={onUpdateScale ? (newScale) => onUpdateScale(item.clothingId, newScale) : undefined}
         />
       ))}
 
       {/* 參考線提示 */}
       <div className="absolute top-4 left-4 text-xs text-gray-400 bg-white/70 px-2 py-1 rounded">
-        提示：拖動衣服到適當位置
+        提示：拖動衣服到適當位置，懸停可調整大小
       </div>
     </div>
   );

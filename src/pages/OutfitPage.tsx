@@ -94,6 +94,12 @@ export default function OutfitPage() {
     );
   };
 
+  const handleUpdateScale = (clothingId: string, scale: number) => {
+    setCanvasItems((prev) =>
+      prev.map((item) => (item.clothingId === clothingId ? { ...item, scale } : item))
+    );
+  };
+
   const handleSaveOutfit = async () => {
     if (!outfitName.trim()) {
       setError('請輸入搭配名稱');
@@ -255,6 +261,7 @@ export default function OutfitPage() {
                     items={canvasItems}
                     onRemoveItem={handleRemoveItem}
                     onUpdatePosition={handleUpdatePosition}
+                    onUpdateScale={handleUpdateScale}
                   />
                 </div>
 

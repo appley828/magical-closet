@@ -10,7 +10,12 @@ const QUALITY = 0.7;
 /**
  * 壓縮圖片並轉換為 Base64
  */
-export async function compressImageToBase64(file: File): Promise<string> {
+export async function compressImageToBase64(
+  file: File,
+  options?: { preserveTransparency?: boolean }
+): Promise<string> {
+  const preserveTransparency = options?.preserveTransparency ?? false;
+
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -37,7 +42,8 @@ export async function compressImageToBase64(file: File): Promise<string> {
 
         // 繪製並壓縮
         ctx.drawImage(img, 0, 0, width, height);
-        const base64 = canvas.toDataURL('image/jpeg', QUALITY);
+        const format = preserveTransparency ? 'image/png' : 'image/jpeg';
+        const base64 = canvas.toDataURL(format, preserveTransparency ? undefined : QUALITY);
         resolve(base64);
       };
       img.onerror = () => reject(new Error('圖片載入失敗'));

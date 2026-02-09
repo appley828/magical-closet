@@ -8,7 +8,12 @@ interface DraggableClothingProps {
   position?: { x: number; y: number };
   scale?: number;
   onRemove?: () => void;
+  onScaleChange?: (newScale: number) => void;
 }
+
+const MIN_SCALE = 0.5;
+const MAX_SCALE = 3.0;
+const SCALE_STEP = 0.25;
 
 export default function DraggableClothing({
   clothing,
@@ -16,6 +21,7 @@ export default function DraggableClothing({
   position,
   scale = 1,
   onRemove,
+  onScaleChange,
 }: DraggableClothingProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: inCanvas ? `canvas-${clothing.id}` : clothing.id,
@@ -44,13 +50,13 @@ export default function DraggableClothing({
         {...attributes}
       >
         <div
-          className="rounded-lg overflow-hidden shadow-lg bg-white"
+          className="rounded-lg overflow-hidden"
           style={{ width: 100 * scale, height: 100 * scale }}
         >
           <img
             src={clothing.imageUrl}
             alt={clothing.category}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-contain"
             draggable={false}
           />
         </div>
@@ -64,6 +70,32 @@ export default function DraggableClothing({
           >
             ×
           </button>
+        )}
+        {onScaleChange && (
+          <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                const newScale = Math.max(MIN_SCALE, scale - SCALE_STEP);
+                onScaleChange(newScale);
+              }}
+              onPointerDown={(e) => e.stopPropagation()}
+              className="w-6 h-6 bg-gray-700 text-white rounded-full flex items-center justify-center text-xs hover:bg-gray-600 shadow"
+            >
+              −
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                const newScale = Math.min(MAX_SCALE, scale + SCALE_STEP);
+                onScaleChange(newScale);
+              }}
+              onPointerDown={(e) => e.stopPropagation()}
+              className="w-6 h-6 bg-gray-700 text-white rounded-full flex items-center justify-center text-xs hover:bg-gray-600 shadow"
+            >
+              +
+            </button>
+          </div>
         )}
       </div>
     );
