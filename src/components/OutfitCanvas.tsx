@@ -20,12 +20,6 @@ export default function OutfitCanvas({ items, onRemoveItem, onUpdateScale, selec
   return (
     <div
       ref={setNodeRef}
-      onPointerDown={(e) => {
-        const target = e.target as HTMLElement;
-        if (!target.closest('[data-draggable]')) {
-          onSelectItem(null);
-        }
-      }}
       className={`relative w-full h-[600px] rounded-xl border-2 border-dashed transition-colors overflow-hidden ${
         isOver ? 'border-pink-400 bg-pink-50' : 'border-gray-300 bg-gradient-to-b from-gray-50 to-gray-100'
       }`}

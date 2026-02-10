@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { DndContext, DragOverlay, MouseSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core';
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
@@ -35,6 +35,24 @@ export default function OutfitPage() {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+
+  // Native event listener to deselect on tap/click outside draggable items.
+  // React synthetic events don't fire reliably on mobile due to dnd-kit touch handling.
+  const handleDeselect = useCallback((e: Event) => {
+    const target = e.target as HTMLElement;
+    if (!target.closest('[data-draggable]')) {
+      setSelectedItemId(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    document.addEventListener('touchstart', handleDeselect);
+    document.addEventListener('mousedown', handleDeselect);
+    return () => {
+      document.removeEventListener('touchstart', handleDeselect);
+      document.removeEventListener('mousedown', handleDeselect);
+    };
+  }, [handleDeselect]);
 
   const filteredClothes = useMemo(() => {
     if (!selectedCategory) return clothes;
