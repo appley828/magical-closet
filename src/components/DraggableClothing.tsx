@@ -95,6 +95,7 @@ export default function DraggableClothing({
       <div
         ref={combinedRef}
         style={style}
+        data-draggable
         className={`group relative cursor-move ${isDragging ? 'opacity-75' : ''}`}
         onClick={(e) => {
           e.stopPropagation();
