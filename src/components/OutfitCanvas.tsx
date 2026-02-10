@@ -8,9 +8,11 @@ interface OutfitCanvasProps {
   onRemoveItem: (clothingId: string) => void;
   onUpdatePosition: (clothingId: string, x: number, y: number) => void;
   onUpdateScale?: (clothingId: string, scale: number) => void;
+  selectedItemId: string | null;
+  onSelectItem: (clothingId: string | null) => void;
 }
 
-export default function OutfitCanvas({ items, onRemoveItem, onUpdateScale }: OutfitCanvasProps) {
+export default function OutfitCanvas({ items, onRemoveItem, onUpdateScale, selectedItemId, onSelectItem }: OutfitCanvasProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: 'outfit-canvas',
   });
@@ -18,6 +20,7 @@ export default function OutfitCanvas({ items, onRemoveItem, onUpdateScale }: Out
   return (
     <div
       ref={setNodeRef}
+      onClick={() => onSelectItem(null)}
       className={`relative w-full h-[600px] rounded-xl border-2 border-dashed transition-colors overflow-hidden ${
         isOver ? 'border-pink-400 bg-pink-50' : 'border-gray-300 bg-gradient-to-b from-gray-50 to-gray-100'
       }`}
@@ -46,6 +49,8 @@ export default function OutfitCanvas({ items, onRemoveItem, onUpdateScale }: Out
           inCanvas
           position={{ x: item.x, y: item.y }}
           scale={item.scale}
+          selected={selectedItemId === item.clothingId}
+          onSelect={() => onSelectItem(item.clothingId)}
           onRemove={() => onRemoveItem(item.clothingId)}
           onScaleChange={onUpdateScale ? (newScale) => onUpdateScale(item.clothingId, newScale) : undefined}
         />
@@ -53,7 +58,7 @@ export default function OutfitCanvas({ items, onRemoveItem, onUpdateScale }: Out
 
       {/* 參考線提示 */}
       <div className="absolute top-4 left-4 text-xs text-gray-400 bg-white/70 px-2 py-1 rounded">
-        提示：拖動衣服到適當位置，雙指可縮放大小
+        提示：拖拉邊角或雙指捏合可縮放大小
       </div>
     </div>
   );

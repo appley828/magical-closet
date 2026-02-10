@@ -34,6 +34,7 @@ export default function OutfitPage() {
   const [showSavedOutfits, setShowSavedOutfits] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
 
   const filteredClothes = useMemo(() => {
     if (!selectedCategory) return clothes;
@@ -270,6 +271,8 @@ export default function OutfitPage() {
                     onRemoveItem={handleRemoveItem}
                     onUpdatePosition={handleUpdatePosition}
                     onUpdateScale={handleUpdateScale}
+                    selectedItemId={selectedItemId}
+                    onSelectItem={setSelectedItemId}
                   />
                 </div>
 
