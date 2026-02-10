@@ -1,6 +1,8 @@
+import { useCallback } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import type { Clothing } from '../types';
+import { usePinchZoom } from '../hooks/usePinchZoom';
 
 interface DraggableClothingProps {
   clothing: Clothing;
@@ -28,6 +30,21 @@ export default function DraggableClothing({
     data: { clothing, inCanvas },
   });
 
+  const { setRef: setPinchRef } = usePinchZoom({
+    currentScale: scale,
+    onScaleChange: onScaleChange ?? (() => {}),
+    minScale: MIN_SCALE,
+    maxScale: MAX_SCALE,
+  });
+
+  const combinedRef = useCallback(
+    (node: HTMLElement | null) => {
+      setNodeRef(node);
+      setPinchRef(node);
+    },
+    [setNodeRef, setPinchRef]
+  );
+
   const style = inCanvas && position
     ? {
         position: 'absolute' as const,
@@ -35,15 +52,17 @@ export default function DraggableClothing({
         top: position.y,
         transform: CSS.Translate.toString(transform),
         zIndex: isDragging ? 50 : 10,
+        touchAction: 'none' as const,
       }
     : {
         transform: CSS.Translate.toString(transform),
+        touchAction: 'none' as const,
       };
 
   if (inCanvas) {
     return (
       <div
-        ref={setNodeRef}
+        ref={combinedRef}
         style={style}
         className={`group relative cursor-move ${isDragging ? 'opacity-75' : ''}`}
         {...listeners}
@@ -66,13 +85,13 @@ export default function DraggableClothing({
               e.stopPropagation();
               onRemove();
             }}
-            className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-sm"
+            className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex items-center justify-center text-sm"
           >
             ×
           </button>
         )}
         {onScaleChange && (
-          <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 flex gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -103,7 +122,7 @@ export default function DraggableClothing({
 
   return (
     <div
-      ref={setNodeRef}
+      ref={combinedRef}
       style={style}
       className={`cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-50' : ''}`}
       {...listeners}

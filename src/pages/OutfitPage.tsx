@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { DndContext, DragOverlay } from '@dnd-kit/core';
+import { DndContext, DragOverlay, MouseSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core';
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import { useClothing } from '../hooks/useClothing';
 import { useOutfits } from '../hooks/useOutfits';
@@ -14,6 +14,14 @@ interface CanvasItem extends OutfitItem {
 }
 
 export default function OutfitPage() {
+  const mouseSensor = useSensor(MouseSensor, {
+    activationConstraint: { distance: 5 },
+  });
+  const touchSensor = useSensor(TouchSensor, {
+    activationConstraint: { delay: 200, tolerance: 5 },
+  });
+  const sensors = useSensors(mouseSensor, touchSensor);
+
   const { clothes, loading: clothesLoading } = useClothing();
   const { outfits, addOutfit, deleteOutfit, loading: outfitsLoading } = useOutfits();
 
@@ -205,7 +213,7 @@ export default function OutfitPage() {
             <div className="animate-spin rounded-full h-12 w-12 border-4 border-pink-200 border-t-pink-500"></div>
           </div>
         ) : (
-          <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+          <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* 左側：衣服選擇區 */}
               <div className="bg-white rounded-xl shadow-sm p-4 space-y-4">

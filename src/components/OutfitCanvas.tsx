@@ -53,7 +53,7 @@ export default function OutfitCanvas({ items, onRemoveItem, onUpdateScale }: Out
 
       {/* 參考線提示 */}
       <div className="absolute top-4 left-4 text-xs text-gray-400 bg-white/70 px-2 py-1 rounded">
-        提示：拖動衣服到適當位置，懸停可調整大小
+        提示：拖動衣服到適當位置，雙指可縮放大小
       </div>
     </div>
   );
