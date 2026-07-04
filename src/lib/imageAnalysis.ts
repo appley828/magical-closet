@@ -5,7 +5,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { COLOR_PRESETS, CATEGORY_OPTIONS, MATERIAL_OPTIONS } from './constants';
 
-const ANTHROPIC_MODEL = 'claude-opus-4-8';
+const ANTHROPIC_MODEL = 'claude-haiku-4-5';
 
 export interface ClothingAnalysis {
   category?: string;
