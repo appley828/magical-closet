@@ -2,10 +2,10 @@
  * 圖片分析工具 - 智慧辨識衣服資訊
  */
 
+import Anthropic from '@anthropic-ai/sdk';
 import { COLOR_PRESETS, CATEGORY_OPTIONS, MATERIAL_OPTIONS } from './constants';
 
-// Gemini API 端點
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+const ANTHROPIC_MODEL = 'claude-opus-4-8';
 
 export interface ClothingAnalysis {
   category?: string;
@@ -164,18 +164,15 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
 }
 
 /**
- * 使用 Gemini API 分析衣服圖片
+ * 使用 Anthropic Claude API 分析衣服圖片
  */
 export async function analyzeClothingWithAI(
   imageDataUrl: string,
   apiKey: string
 ): Promise<ClothingAnalysis> {
-  // 壓縮圖片
+  // 壓縮圖片（輸出固定為 JPEG data URL）
   const compressedImage = await compressImageForAI(imageDataUrl);
-
-  // 從 data URL 中提取 base64 資料
   const base64Data = compressedImage.split(',')[1];
-  const mimeType = compressedImage.split(';')[0].split(':')[1] || 'image/jpeg';
 
   const categories = CATEGORY_OPTIONS.map(c => c.value).join('、');
   const materials = MATERIAL_OPTIONS.map(m => m.value).join('、');
@@ -189,48 +186,35 @@ export async function analyzeClothingWithAI(
 }
 只回覆 JSON。`;
 
+  // 個人前端應用，API Key 由使用者自行提供並存於本機
+  const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
+
   try {
-    const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              {
-                inline_data: {
-                  mime_type: mimeType,
-                  data: base64Data,
-                },
+    const response = await client.messages.create({
+      model: ANTHROPIC_MODEL,
+      max_tokens: 1024,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'image',
+              source: {
+                type: 'base64',
+                media_type: 'image/jpeg',
+                data: base64Data,
               },
-              { text: prompt },
-            ],
-          },
-        ],
-        generationConfig: {
-          temperature: 0.1,
-          maxOutputTokens: 500,
+            },
+            { type: 'text', text: prompt },
+          ],
         },
-      }),
+      ],
     });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error('API 錯誤回應:', errorData);
-      if (response.status === 429) {
-        throw new Error('API 免費額度已用完，請稍後再試或更換 API Key');
-      } else if (response.status === 403 || response.status === 401) {
-        throw new Error('API Key 無效或已過期，請重新設定');
-      }
-      throw new Error(errorData.error?.message || `API 請求失敗: ${response.status}`);
-    }
-
-    const data = await response.json();
-    console.log('API 回應:', data);
-
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const text = response.content
+      .filter((block) => block.type === 'text')
+      .map((block) => block.text)
+      .join('');
 
     // 解析 JSON 回應
     const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -247,34 +231,43 @@ export async function analyzeClothingWithAI(
     return {};
   } catch (error) {
     console.error('AI 分析失敗:', error);
+    if (error instanceof Anthropic.AuthenticationError) {
+      throw new Error('API Key 無效或已過期，請重新設定');
+    }
+    if (error instanceof Anthropic.RateLimitError) {
+      throw new Error('API 用量已達上限，請稍後再試');
+    }
+    if (error instanceof Anthropic.APIError) {
+      throw new Error(`API 請求失敗: ${error.message}`);
+    }
     throw error;
   }
 }
 
 /**
- * 檢查是否有設定 Gemini API Key
+ * 檢查是否有設定 Anthropic API Key
  * 優先使用環境變數，其次使用 localStorage
  */
-export function getGeminiApiKey(): string | null {
+export function getAnthropicApiKey(): string | null {
   // 優先使用環境變數
-  const envKey = import.meta.env.VITE_GEMINI_API_KEY;
-  if (envKey && envKey !== 'YOUR_GEMINI_API_KEY') {
+  const envKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
+  if (envKey && envKey !== 'YOUR_ANTHROPIC_API_KEY') {
     return envKey;
   }
   // 其次使用 localStorage
-  return localStorage.getItem('gemini_api_key');
+  return localStorage.getItem('anthropic_api_key');
 }
 
 /**
- * 儲存 Gemini API Key
+ * 儲存 Anthropic API Key
  */
-export function setGeminiApiKey(key: string): void {
-  localStorage.setItem('gemini_api_key', key);
+export function setAnthropicApiKey(key: string): void {
+  localStorage.setItem('anthropic_api_key', key);
 }
 
 /**
- * 移除 Gemini API Key
+ * 移除 Anthropic API Key
  */
-export function removeGeminiApiKey(): void {
-  localStorage.removeItem('gemini_api_key');
+export function removeAnthropicApiKey(): void {
+  localStorage.removeItem('anthropic_api_key');
 }

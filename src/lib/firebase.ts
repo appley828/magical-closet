@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
+import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 
 // TODO: 請在 Firebase Console 建立專案後，將設定填入以下內容
 // 1. 前往 https://console.firebase.google.com/
@@ -25,5 +26,7 @@ export const isFirebaseConfigured = () => {
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
+export const auth = getAuth(app);
+export const googleProvider = new GoogleAuthProvider();
 
 export default app;

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { Clothing } from '../types';
 import { CATEGORY_OPTIONS, SIZE_OPTIONS, MATERIAL_OPTIONS, COLOR_PRESETS, COLOR_PALETTE, CATEGORY_GROUPS } from '../lib/constants';
-import { extractDominantColor, analyzeClothingWithAI, getGeminiApiKey, setGeminiApiKey } from '../lib/imageAnalysis';
+import { extractDominantColor, analyzeClothingWithAI, getAnthropicApiKey, setAnthropicApiKey } from '../lib/imageAnalysis';
 import { removeImageBackground, blobToDataURL } from '../lib/backgroundRemoval';
 import ImageUploader from './ImageUploader';
 
@@ -40,7 +40,7 @@ export default function ClothingForm({ initialData, onSubmit, onCancel, isLoadin
   const [bgRemoved, setBgRemoved] = useState(false);
 
   useEffect(() => {
-    setHasApiKey(!!getGeminiApiKey());
+    setHasApiKey(!!getAnthropicApiKey());
   }, []);
 
   const handleImageSelect = async (file: File) => {
@@ -66,7 +66,7 @@ export default function ClothingForm({ initialData, onSubmit, onCancel, isLoadin
   };
 
   const handleSmartAnalyze = async () => {
-    const apiKey = getGeminiApiKey();
+    const apiKey = getAnthropicApiKey();
     if (!apiKey) {
       setShowApiKeyModal(true);
       return;
@@ -147,7 +147,7 @@ export default function ClothingForm({ initialData, onSubmit, onCancel, isLoadin
 
   const handleSaveApiKey = () => {
     if (apiKeyInput.trim()) {
-      setGeminiApiKey(apiKeyInput.trim());
+      setAnthropicApiKey(apiKeyInput.trim());
       setHasApiKey(true);
       setShowApiKeyModal(false);
       setApiKeyInput('');
@@ -250,7 +250,7 @@ export default function ClothingForm({ initialData, onSubmit, onCancel, isLoadin
             </button>
             {!hasApiKey && (
               <p className="text-xs text-gray-500 text-center">
-                首次使用需設定 Gemini API Key（免費）
+                首次使用需設定 Anthropic API Key
               </p>
             )}
             {analysisError && (
@@ -529,18 +529,18 @@ export default function ClothingForm({ initialData, onSubmit, onCancel, isLoadin
       {showApiKeyModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl p-6 max-w-md w-full">
-            <h3 className="text-lg font-semibold text-gray-800">設定 Gemini API Key</h3>
+            <h3 className="text-lg font-semibold text-gray-800">設定 Anthropic API Key</h3>
             <p className="mt-2 text-sm text-gray-600">
-              智慧辨識功能使用 Google Gemini API（免費）。請前往{' '}
+              智慧辨識功能使用 Anthropic Claude API。請前往{' '}
               <a
-                href="https://aistudio.google.com/app/apikey"
+                href="https://platform.claude.com/settings/keys"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-pink-500 underline"
               >
-                Google AI Studio
+                Claude Platform Console
               </a>{' '}
-              取得免費 API Key。
+              取得 API Key（依用量計費）。
             </p>
             <input
               type="password"

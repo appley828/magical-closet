@@ -1,12 +1,14 @@
 import { useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useClothing } from '../hooks/useClothing';
+import { useAuth } from '../hooks/useAuth';
 import ClothingGrid from '../components/ClothingGrid';
 import FilterBar, { type FilterState } from '../components/FilterBar';
 import type { Clothing } from '../types';
 
 export default function HomePage() {
   const { clothes, loading, error, isConfigured } = useClothing();
+  const { user, signOutUser } = useAuth();
   const navigate = useNavigate();
   const [filters, setFilters] = useState<FilterState>({
     category: '',
@@ -125,6 +127,26 @@ VITE_FIREBASE_APP_ID=your_app_id`}
                 </svg>
                 新增衣服
               </Link>
+              {user && (
+                <div className="flex items-center gap-2 pl-2 border-l border-gray-200">
+                  {user.photoURL && (
+                    <img
+                      src={user.photoURL}
+                      alt={user.displayName ?? '使用者'}
+                      referrerPolicy="no-referrer"
+                      className="w-8 h-8 rounded-full"
+                      title={user.displayName ?? user.email ?? ''}
+                    />
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => signOutUser()}
+                    className="px-3 py-2 text-sm text-gray-500 hover:text-pink-500 transition-colors"
+                  >
+                    登出
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
