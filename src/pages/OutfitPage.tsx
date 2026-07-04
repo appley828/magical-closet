@@ -15,10 +15,11 @@ interface CanvasItem extends OutfitItem {
 
 export default function OutfitPage() {
   const mouseSensor = useSensor(MouseSensor, {
-    activationConstraint: { distance: 5 },
+    activationConstraint: { distance: 4 },
   });
+  // 長按 150ms 啟動拖拉；tolerance 放寬到 8px，快速滑動時交給瀏覽器捲動清單
   const touchSensor = useSensor(TouchSensor, {
-    activationConstraint: { delay: 200, tolerance: 5 },
+    activationConstraint: { delay: 150, tolerance: 8 },
   });
   const sensors = useSensors(mouseSensor, touchSensor);
 
@@ -61,8 +62,10 @@ export default function OutfitPage() {
 
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
-    const clothingId = String(active.id).replace('canvas-', '');
-    const clothing = clothes.find((c) => c.id === clothingId);
+    const activeId = String(active.id);
+    // 畫布內移動時衣服本體會跟著游標，不需要 DragOverlay（否則畫面上有兩個影像在動）
+    if (activeId.startsWith('canvas-')) return;
+    const clothing = clothes.find((c) => c.id === activeId);
     if (clothing) {
       setActiveClothing(clothing);
     }
@@ -80,13 +83,20 @@ export default function OutfitPage() {
 
     if (over.id === 'outfit-canvas') {
       if (isFromCanvas) {
-        // 在畫布內移動
+        // 在畫布內移動；限制至少留一半在畫布內，避免整件拖出界外找不回來
+        const rect = document.getElementById('outfit-canvas')?.getBoundingClientRect();
         setCanvasItems((prev) =>
-          prev.map((item) =>
-            item.clothingId === clothingId
-              ? { ...item, x: item.x + delta.x, y: item.y + delta.y }
-              : item
-          )
+          prev.map((item) => {
+            if (item.clothingId !== clothingId) return item;
+            const size = 100 * item.scale;
+            let x = item.x + delta.x;
+            let y = item.y + delta.y;
+            if (rect) {
+              x = Math.min(Math.max(x, -size / 2), rect.width - size / 2);
+              y = Math.min(Math.max(y, -size / 2), rect.height - size / 2);
+            }
+            return { ...item, x, y };
+          })
         );
       } else {
         // 從列表拖到畫布
