@@ -1,7 +1,7 @@
 import { useDroppable } from '@dnd-kit/core';
 import type { Clothing, OutfitItem } from '../types';
 import DraggableClothing from './DraggableClothing';
-import GirlMannequin from './GirlMannequin';
+import DressFormMannequin from './DressFormMannequin';
 
 interface OutfitCanvasProps {
   items: (OutfitItem & { clothing: Clothing })[];
@@ -24,9 +24,9 @@ export default function OutfitCanvas({ items, onRemoveItem, onUpdateScale, selec
         isOver ? 'border-pink-400 bg-pink-50' : 'border-gray-300 bg-gradient-to-b from-gray-50 to-gray-100'
       }`}
     >
-      {/* 模特兒背景 */}
+      {/* 人台背景 */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <GirlMannequin className="h-[550px] w-auto opacity-60" />
+        <DressFormMannequin className="h-[560px] w-auto opacity-70" />
       </div>
 
       {/* 放置提示 */}
