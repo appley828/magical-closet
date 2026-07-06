@@ -3,7 +3,7 @@ import { useAuth } from '../hooks/useAuth';
 import { isFirebaseConfigured } from '../lib/firebase';
 
 export default function AuthGate({ children }: { children: ReactNode }) {
-  const { user, loading, signInWithGoogle } = useAuth();
+  const { user, loading, deniedEmail, signInWithGoogle } = useAuth();
   const [signingIn, setSigningIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,6 +55,11 @@ export default function AuthGate({ children }: { children: ReactNode }) {
             </svg>
             {signingIn ? '登入中...' : '使用 Google 帳號登入'}
           </button>
+          {deniedEmail && (
+            <p className="mt-3 text-sm text-red-500">
+              {deniedEmail} 沒有使用權限，請改用獲授權的帳號登入
+            </p>
+          )}
           {error && <p className="mt-3 text-sm text-red-500">{error}</p>}
         </div>
       </div>

@@ -7,16 +7,26 @@ import {
   type User,
 } from 'firebase/auth';
 import { auth, googleProvider, isFirebaseConfigured } from '../lib/firebase';
+import { isAllowedEmail } from '../lib/allowlist';
 import { AuthContext } from './auth-context';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(isFirebaseConfigured());
+  const [deniedEmail, setDeniedEmail] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isFirebaseConfigured()) return;
 
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      // 白名單檢查：不在名單內的帳號直接登出
+      if (currentUser && !isAllowedEmail(currentUser.email)) {
+        setDeniedEmail(currentUser.email);
+        setUser(null);
+        setLoading(false);
+        void signOut(auth);
+        return;
+      }
       setUser(currentUser);
       setLoading(false);
     });
@@ -28,7 +38,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       user,
       loading,
+      deniedEmail,
       signInWithGoogle: async () => {
+        setDeniedEmail(null);
         try {
           await signInWithPopup(auth, googleProvider);
         } catch (err: unknown) {
@@ -43,7 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       signOutUser: () => signOut(auth),
     }),
-    [user, loading]
+    [user, loading, deniedEmail]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

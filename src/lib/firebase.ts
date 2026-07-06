@@ -28,5 +28,7 @@ const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
+// 每次登入都顯示帳號選擇器，被白名單擋下後才能換帳號重試
+googleProvider.setCustomParameters({ prompt: 'select_account' });
 
 export default app;
