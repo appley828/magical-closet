@@ -91,21 +91,25 @@ export interface FigureImage {
 }
 
 /**
- * 從透明圖的每列寬度找脖子：頭部下方、肩膀上方最窄的那一列。
+ * 找脖子：從身體中線往左右延伸、連續不透明的那一段寬度，取頭部下方最窄的一列。
+ * 只量中線那一段，垂在兩側的馬尾、長髮（和脖子之間有空隙）就不會被算進去。
  * 寫實比例約 0.2，Q 版大頭約 0.33；找不到合理值就用 0.2。
  */
 function estimateNeckRatio(data: Uint8ClampedArray, width: number, minY: number, maxY: number, minX: number, maxX: number) {
   const height = maxY - minY + 1;
+  const cx = Math.round((minX + maxX) / 2);
+  const opaque = (x: number, y: number) => data[(y * width + x) * 4 + 3] > 128;
   let bestY = -1;
   let bestWidth = Infinity;
   for (let y = minY + Math.round(height * 0.1); y <= minY + Math.round(height * 0.45); y++) {
-    let count = 0;
-    for (let x = minX; x <= maxX; x++) {
-      if (data[(y * width + x) * 4 + 3] > 128) count++;
-    }
-    // 同寬時取較下面的那列（脖子底部接肩膀）
-    if (count > 0 && count <= bestWidth) {
-      bestWidth = count;
+    if (!opaque(cx, y)) continue;
+    let left = cx;
+    while (left > minX && opaque(left - 1, y)) left--;
+    let right = cx;
+    while (right < maxX && opaque(right + 1, y)) right++;
+    const runWidth = right - left + 1;
+    if (runWidth < bestWidth) {
+      bestWidth = runWidth;
       bestY = y;
     }
   }

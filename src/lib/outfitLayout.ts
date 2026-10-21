@@ -70,7 +70,7 @@ function childAnchors(neckRatio: number): Anchors {
   const k = body / REFERENCE_BODY;
   return {
     上衣: { top: n - 0.01, scale: 1.6 * k },
-    下身: { top: n + 0.33 * body, scale: 1.8 * k },
+    下身: { top: n + 0.29 * body, scale: 1.8 * k },
     洋裝: { top: n - 0.01, scale: 2.4 * k },
     // 帽子的帽緣約在圖片下方 3/4，往上提一點才會戴在額頭而不是蓋住眼睛；頭越大帽子越大
     配件: { top: -0.08, scale: Math.max(0.8, n * 4.6) },
