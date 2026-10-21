@@ -1,10 +1,4 @@
-import { useState } from 'react';
 import { CATEGORY_OPTIONS, SIZE_OPTIONS, CATEGORY_GROUPS } from '../lib/constants';
-
-interface FilterBarProps {
-  onFilterChange: (filters: FilterState) => void;
-  onSearchChange: (search: string) => void;
-}
 
 export interface FilterState {
   category: string;
@@ -12,32 +6,36 @@ export interface FilterState {
   sortBy: 'newest' | 'oldest' | 'category';
 }
 
-export default function FilterBar({ onFilterChange, onSearchChange }: FilterBarProps) {
-  const [filters, setFilters] = useState<FilterState>({
-    category: '',
-    size: '',
-    sortBy: 'newest',
-  });
-  const [search, setSearch] = useState('');
+interface FilterBarProps {
+  filters: FilterState;
+  search: string;
+  onFilterChange: (filters: FilterState) => void;
+  onSearchChange: (search: string) => void;
+  /** 實際有衣服的尺寸；不在預設選項內的尺寸也會出現在下拉選單，確保與快速篩選同步 */
+  availableSizes?: string[];
+}
 
+export default function FilterBar({
+  filters,
+  search,
+  onFilterChange,
+  onSearchChange,
+  availableSizes = [],
+}: FilterBarProps) {
   const handleFilterChange = (key: keyof FilterState, value: string) => {
-    const newFilters = { ...filters, [key]: value };
-    setFilters(newFilters);
-    onFilterChange(newFilters);
-  };
-
-  const handleSearchChange = (value: string) => {
-    setSearch(value);
-    onSearchChange(value);
+    onFilterChange({ ...filters, [key]: value });
   };
 
   const clearFilters = () => {
-    const defaultFilters: FilterState = { category: '', size: '', sortBy: 'newest' };
-    setFilters(defaultFilters);
-    setSearch('');
-    onFilterChange(defaultFilters);
+    onFilterChange({ category: '', size: '', sortBy: 'newest' });
     onSearchChange('');
   };
+
+  const knownSizes = new Set<string>(SIZE_OPTIONS.map((o) => o.value));
+  const extraSizes = availableSizes.filter((s) => !knownSizes.has(s));
+  if (filters.size && !knownSizes.has(filters.size) && !extraSizes.includes(filters.size)) {
+    extraSizes.push(filters.size);
+  }
 
   const hasActiveFilters = filters.category || filters.size || search;
 
@@ -49,8 +47,8 @@ export default function FilterBar({ onFilterChange, onSearchChange }: FilterBarP
           type="text"
           placeholder="搜尋衣服..."
           value={search}
-          onChange={(e) => handleSearchChange(e.target.value)}
-          className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-300 focus:border-transparent"
+          onChange={(e) => onSearchChange(e.target.value)}
+          className="w-full pl-10 pr-4 py-2 min-h-[44px] text-base border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-300 focus:border-transparent"
         />
         <svg
           className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400"
@@ -73,7 +71,7 @@ export default function FilterBar({ onFilterChange, onSearchChange }: FilterBarP
         <select
           value={filters.category}
           onChange={(e) => handleFilterChange('category', e.target.value)}
-          className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pink-300"
+          className="min-h-[40px] px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pink-300"
         >
           <option value="">所有種類</option>
           {CATEGORY_GROUPS.map((group) => (
@@ -91,12 +89,17 @@ export default function FilterBar({ onFilterChange, onSearchChange }: FilterBarP
         <select
           value={filters.size}
           onChange={(e) => handleFilterChange('size', e.target.value)}
-          className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pink-300"
+          className="min-h-[40px] px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pink-300"
         >
           <option value="">所有尺寸</option>
           {SIZE_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>
               {opt.label}
+            </option>
+          ))}
+          {extraSizes.map((size) => (
+            <option key={size} value={size}>
+              {size}
             </option>
           ))}
         </select>
@@ -105,7 +108,7 @@ export default function FilterBar({ onFilterChange, onSearchChange }: FilterBarP
         <select
           value={filters.sortBy}
           onChange={(e) => handleFilterChange('sortBy', e.target.value as FilterState['sortBy'])}
-          className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pink-300"
+          className="min-h-[40px] px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pink-300"
         >
           <option value="newest">最新新增</option>
           <option value="oldest">最早新增</option>
@@ -115,8 +118,9 @@ export default function FilterBar({ onFilterChange, onSearchChange }: FilterBarP
         {/* 清除篩選 */}
         {hasActiveFilters && (
           <button
+            type="button"
             onClick={clearFilters}
-            className="px-3 py-2 text-sm text-pink-500 hover:text-pink-600 hover:bg-pink-50 rounded-lg transition-colors"
+            className="min-h-[40px] px-3 py-2 text-sm text-pink-500 hover:text-pink-600 hover:bg-pink-50 rounded-lg transition-colors"
           >
             清除篩選
           </button>

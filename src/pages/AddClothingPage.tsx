@@ -47,15 +47,11 @@ export default function AddClothingPage() {
       {/* Main Content */}
       <main className="max-w-2xl mx-auto px-4 py-6">
         <div className="bg-white rounded-xl shadow-sm p-6">
-          {error && (
-            <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-              {error}
-            </div>
-          )}
           <ClothingForm
             onSubmit={handleSubmit}
             onCancel={() => navigate('/')}
             isLoading={isLoading}
+            error={error}
           />
         </div>
       </main>

@@ -4,6 +4,7 @@ import { useClothing } from '../hooks/useClothing';
 import { useAuth } from '../hooks/useAuth';
 import ClothingGrid from '../components/ClothingGrid';
 import FilterBar, { type FilterState } from '../components/FilterBar';
+import UserMenu from '../components/UserMenu';
 import type { Clothing } from '../types';
 
 export default function HomePage() {
@@ -16,6 +17,20 @@ export default function HomePage() {
     sortBy: 'newest',
   });
   const [search, setSearch] = useState('');
+
+  // 實際有衣服的尺寸（依數字排序）與件數
+  const sizeCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    clothes.forEach((c) => counts.set(c.size, (counts.get(c.size) ?? 0) + 1));
+    return [...counts.entries()].sort(([a], [b]) =>
+      a.localeCompare(b, undefined, { numeric: true })
+    );
+  }, [clothes]);
+  const availableSizes = useMemo(() => sizeCounts.map(([size]) => size), [sizeCounts]);
+
+  const handleSizeChip = (size: string) => {
+    setFilters((prev) => ({ ...prev, size }));
+  };
 
   const filteredClothes = useMemo(() => {
     let result = [...clothes];
@@ -106,47 +121,30 @@ VITE_FIREBASE_APP_ID=your_app_id`}
     <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50">
       {/* Header */}
       <header className="bg-white shadow-sm sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-500">
+        <div className="max-w-7xl mx-auto px-4 py-3 sm:py-4">
+          <div className="flex items-center justify-between gap-2">
+            <h1 className="text-xl sm:text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-500 whitespace-nowrap">
               魔法衣櫃
             </h1>
-            <div className="flex gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
               <Link
                 to="/outfit"
-                className="px-4 py-2 text-pink-500 border border-pink-300 rounded-lg hover:bg-pink-50 transition-colors"
+                className="min-h-[40px] px-3 sm:px-4 flex items-center text-sm sm:text-base whitespace-nowrap text-pink-500 border border-pink-300 rounded-lg hover:bg-pink-50 transition-colors"
               >
-                搭配衣服
+                <span className="sm:hidden">搭配</span>
+                <span className="hidden sm:inline">搭配衣服</span>
               </Link>
               <Link
                 to="/add"
-                className="px-4 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 transition-colors flex items-center gap-2"
+                className="min-h-[40px] px-3 sm:px-4 text-sm sm:text-base whitespace-nowrap bg-pink-500 text-white rounded-lg hover:bg-pink-600 transition-colors flex items-center gap-1 sm:gap-2"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
-                新增衣服
+                <span className="sm:hidden">新增</span>
+                <span className="hidden sm:inline">新增衣服</span>
               </Link>
-              {user && (
-                <div className="flex items-center gap-2 pl-2 border-l border-gray-200">
-                  {user.photoURL && (
-                    <img
-                      src={user.photoURL}
-                      alt={user.displayName ?? '使用者'}
-                      referrerPolicy="no-referrer"
-                      className="w-8 h-8 rounded-full"
-                      title={user.displayName ?? user.email ?? ''}
-                    />
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => signOutUser()}
-                    className="px-3 py-2 text-sm text-gray-500 hover:text-pink-500 transition-colors"
-                  >
-                    登出
-                  </button>
-                </div>
-              )}
+              {user && <UserMenu user={user} onSignOut={() => signOutUser()} />}
             </div>
           </div>
         </div>
@@ -155,33 +153,61 @@ VITE_FIREBASE_APP_ID=your_app_id`}
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
         {/* 統計 */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div className="bg-white rounded-xl shadow-sm p-4 text-center">
-            <p className="text-3xl font-bold text-pink-500">{clothes.length}</p>
-            <p className="text-sm text-gray-500">件衣服</p>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm p-4 text-center">
-            <p className="text-3xl font-bold text-purple-500">
-              {new Set(clothes.map((c) => c.category)).size}
-            </p>
-            <p className="text-sm text-gray-500">種類別</p>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm p-4 text-center">
-            <p className="text-3xl font-bold text-blue-500">
-              {new Set(clothes.map((c) => c.size)).size}
-            </p>
-            <p className="text-sm text-gray-500">種尺寸</p>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm p-4 text-center">
-            <p className="text-3xl font-bold text-green-500">
-              {new Set(clothes.map((c) => c.color)).size}
-            </p>
-            <p className="text-sm text-gray-500">種顏色</p>
-          </div>
+        <div className="grid grid-cols-4 gap-2 sm:gap-4">
+          {[
+            { value: clothes.length, label: '件衣服', color: 'text-pink-500' },
+            { value: new Set(clothes.map((c) => c.category)).size, label: '種類別', color: 'text-purple-500' },
+            { value: new Set(clothes.map((c) => c.size)).size, label: '種尺寸', color: 'text-blue-500' },
+            { value: new Set(clothes.map((c) => c.color)).size, label: '種顏色', color: 'text-green-500' },
+          ].map((stat) => (
+            <div key={stat.label} className="bg-white rounded-xl shadow-sm py-2 px-1 sm:p-4 text-center">
+              <p className={`text-xl sm:text-3xl font-bold leading-tight ${stat.color}`}>{stat.value}</p>
+              <p className="text-xs sm:text-sm text-gray-500 whitespace-nowrap">{stat.label}</p>
+            </div>
+          ))}
         </div>
 
         {/* 篩選 */}
-        <FilterBar onFilterChange={setFilters} onSearchChange={setSearch} />
+        <FilterBar
+          filters={filters}
+          search={search}
+          onFilterChange={setFilters}
+          onSearchChange={setSearch}
+          availableSizes={availableSizes}
+        />
+
+        {/* 尺寸快速篩選 */}
+        {sizeCounts.length > 0 && (
+          <div
+            role="group"
+            aria-label="尺寸快速篩選"
+            className="-mx-4 px-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
+            {[{ size: '', label: '全部', count: clothes.length }, ...sizeCounts.map(([size, count]) => ({ size, label: size, count }))].map(
+              (chip) => {
+                const active = filters.size === chip.size;
+                return (
+                  <button
+                    key={chip.size || 'all'}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => handleSizeChip(chip.size)}
+                    className={`shrink-0 min-h-[40px] px-4 rounded-full text-sm whitespace-nowrap border transition-colors ${
+                      active
+                        ? 'bg-pink-500 border-pink-500 text-white'
+                        : 'bg-white border-gray-200 text-gray-600 hover:bg-pink-50'
+                    }`}
+                  >
+                    {chip.label}
+                    <span className={`ml-1 ${active ? 'text-pink-100' : 'text-gray-400'}`}>
+                      {chip.count}
+                    </span>
+                  </button>
+                );
+              }
+            )}
+          </div>
+        )}
 
         {/* 錯誤訊息 */}
         {error && (

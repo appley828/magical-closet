@@ -51,6 +51,8 @@ export interface OutfitWithPositions {
   name: string;
   items: OutfitItem[];
   occasion?: string;
+  /** 座標版本，見 lib/outfitLayout.ts；舊資料沒有這個欄位 */
+  stageVersion?: number;
   createdAt: Timestamp;
 }
 

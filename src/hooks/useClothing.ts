@@ -18,15 +18,13 @@ const COLLECTION_NAME = 'clothing';
 
 export function useClothing() {
   const [clothes, setClothes] = useState<Clothing[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(isFirebaseConfigured);
+  const [error, setError] = useState<string | null>(() =>
+    isFirebaseConfigured() ? null : 'Firebase 尚未設定，請先設定 Firebase 配置'
+  );
 
   useEffect(() => {
-    if (!isFirebaseConfigured()) {
-      setError('Firebase 尚未設定，請先設定 Firebase 配置');
-      setLoading(false);
-      return;
-    }
+    if (!isFirebaseConfigured()) return;
 
     const q = query(
       collection(db, COLLECTION_NAME),

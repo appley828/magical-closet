@@ -9,6 +9,7 @@ import {
   query,
   orderBy,
   Timestamp,
+  deleteField,
 } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from '../lib/firebase';
 import type { OutfitWithPositions, OutfitItem } from '../types';
@@ -17,15 +18,13 @@ const COLLECTION_NAME = 'outfits';
 
 export function useOutfits() {
   const [outfits, setOutfits] = useState<OutfitWithPositions[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(isFirebaseConfigured);
+  const [error, setError] = useState<string | null>(() =>
+    isFirebaseConfigured() ? null : 'Firebase 尚未設定，請先設定 Firebase 配置'
+  );
 
   useEffect(() => {
-    if (!isFirebaseConfigured()) {
-      setError('Firebase 尚未設定，請先設定 Firebase 配置');
-      setLoading(false);
-      return;
-    }
+    if (!isFirebaseConfigured()) return;
 
     const q = query(
       collection(db, COLLECTION_NAME),
@@ -54,13 +53,16 @@ export function useOutfits() {
   }, []);
 
   const addOutfit = useCallback(
-    async (data: { name: string; items: OutfitItem[]; occasion?: string }) => {
+    async (data: { name: string; items: OutfitItem[]; occasion?: string; stageVersion?: number }) => {
       if (!isFirebaseConfigured()) {
         throw new Error('Firebase 尚未設定');
       }
 
+      // Firestore 不接受 undefined／空場合，沒選就不寫這個欄位
+      const { occasion, ...rest } = data;
       const docRef = await addDoc(collection(db, COLLECTION_NAME), {
-        ...data,
+        ...rest,
+        ...(occasion ? { occasion } : {}),
         createdAt: Timestamp.now(),
       });
 
@@ -72,14 +74,19 @@ export function useOutfits() {
   const updateOutfit = useCallback(
     async (
       id: string,
-      data: Partial<{ name: string; items: OutfitItem[]; occasion?: string }>
+      data: Partial<{ name: string; items: OutfitItem[]; occasion?: string; stageVersion?: number }>
     ) => {
       if (!isFirebaseConfigured()) {
         throw new Error('Firebase 尚未設定');
       }
 
       const docRef = doc(db, COLLECTION_NAME, id);
-      await updateDoc(docRef, data);
+      // updateDoc 是合併更新：場合清空時要明確刪掉舊值
+      const { occasion, ...rest } = data;
+      await updateDoc(docRef, {
+        ...rest,
+        ...('occasion' in data ? { occasion: occasion || deleteField() } : {}),
+      });
     },
     []
   );

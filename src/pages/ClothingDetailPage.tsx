@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useClothing } from '../hooks/useClothing';
 import ClothingForm from '../components/ClothingForm';
+import { getColorName } from '../lib/colorName';
 import type { Clothing } from '../types';
 
 export default function ClothingDetailPage() {
@@ -11,7 +12,8 @@ export default function ClothingDetailPage() {
   const [clothing, setClothing] = useState<Clothing | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
@@ -29,14 +31,14 @@ export default function ClothingDetailPage() {
     if (!id) return;
 
     setIsLoading(true);
-    setError(null);
+    setUpdateError(null);
 
     try {
       await updateClothing(id, data, imageFile);
       setIsEditing(false);
     } catch (err) {
       console.error('Error updating clothing:', err);
-      setError('更新衣服時發生錯誤，請稍後再試');
+      setUpdateError('更新衣服時發生錯誤，請稍後再試');
     } finally {
       setIsLoading(false);
     }
@@ -46,14 +48,14 @@ export default function ClothingDetailPage() {
     if (!id || !clothing) return;
 
     setIsLoading(true);
-    setError(null);
+    setDeleteError(null);
 
     try {
       await deleteClothing(id);
       navigate('/');
     } catch (err) {
       console.error('Error deleting clothing:', err);
-      setError('刪除衣服時發生錯誤，請稍後再試');
+      setDeleteError('刪除衣服時發生錯誤，請稍後再試');
       setIsLoading(false);
     }
   };
@@ -107,9 +109,9 @@ export default function ClothingDetailPage() {
 
       {/* Main Content */}
       <main className="max-w-2xl mx-auto px-4 py-6">
-        {error && (
+        {deleteError && (
           <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-            {error}
+            {deleteError}
           </div>
         )}
 
@@ -118,8 +120,12 @@ export default function ClothingDetailPage() {
             <ClothingForm
               initialData={clothing}
               onSubmit={handleUpdate}
-              onCancel={() => setIsEditing(false)}
+              onCancel={() => {
+                setIsEditing(false);
+                setUpdateError(null);
+              }}
               isLoading={isLoading}
+              error={updateError}
             />
           </div>
         ) : (
@@ -140,7 +146,7 @@ export default function ClothingDetailPage() {
                 <span
                   className="w-8 h-8 rounded-full border-2 border-gray-200"
                   style={{ backgroundColor: clothing.color }}
-                  title={clothing.color}
+                  title={getColorName(clothing.color)}
                 />
               </div>
 
@@ -155,7 +161,10 @@ export default function ClothingDetailPage() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">顏色</p>
-                  <p className="font-medium">{clothing.color}</p>
+                  <p className="font-medium">
+                    {getColorName(clothing.color)}
+                    <span className="ml-1 text-xs font-normal text-gray-400">{clothing.color}</span>
+                  </p>
                 </div>
                 {clothing.brand && (
                   <div>

@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import type { Clothing } from '../types';
 import { CATEGORY_OPTIONS, SIZE_OPTIONS, MATERIAL_OPTIONS, COLOR_PRESETS, COLOR_PALETTE, CATEGORY_GROUPS } from '../lib/constants';
 import { extractDominantColor, analyzeClothingWithAI, getAnthropicApiKey, setAnthropicApiKey } from '../lib/imageAnalysis';
 import { removeImageBackground, blobToDataURL } from '../lib/backgroundRemoval';
+import { getColorName } from '../lib/colorName';
 import ImageUploader from './ImageUploader';
 
 interface ClothingFormProps {
@@ -10,9 +11,10 @@ interface ClothingFormProps {
   onSubmit: (data: Omit<Clothing, 'id' | 'createdAt'>, imageFile?: File) => void;
   onCancel?: () => void;
   isLoading?: boolean;
+  error?: string | null;
 }
 
-export default function ClothingForm({ initialData, onSubmit, onCancel, isLoading }: ClothingFormProps) {
+export default function ClothingForm({ initialData, onSubmit, onCancel, isLoading, error }: ClothingFormProps) {
   const [formData, setFormData] = useState({
     category: initialData?.category || '',
     size: initialData?.size || '',
@@ -34,126 +36,186 @@ export default function ClothingForm({ initialData, onSubmit, onCancel, isLoadin
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [apiKeyInput, setApiKeyInput] = useState('');
-  const [hasApiKey, setHasApiKey] = useState(false);
+  const [hasApiKey, setHasApiKey] = useState(() => !!getAnthropicApiKey());
   const [isRemovingBg, setIsRemovingBg] = useState(false);
+  // 去背模型很吃記憶體：舊的去背還在背景跑時（即使已換圖），不允許再開一個
+  const [bgJobRunning, setBgJobRunning] = useState(false);
   const [bgRemovalProgress, setBgRemovalProgress] = useState(0);
+  // 目前是否採用去背版本
   const [bgRemoved, setBgRemoved] = useState(false);
+  // 原圖（新選的照片；編輯模式沒有新選照片時為 null，代表沿用既有 imageUrl）
+  const [originalFile, setOriginalFile] = useState<File | null>(null);
+  const [originalPreview, setOriginalPreview] = useState<string | null>(null);
+  // 去背結果快取，切回原圖後可直接再套用
+  const [bgCache, setBgCache] = useState<{ file: File; preview: string } | null>(null);
 
-  useEffect(() => {
-    setHasApiKey(!!getAnthropicApiKey());
-  }, []);
+  // 以最新一張圖／最新一次辨識為準，忽略過期的非同步結果
+  const imageSeqRef = useRef(0);
+  const analysisRunRef = useRef(0);
+  // 目前採用的圖片來源（給非同步流程讀最新值，避免舊 closure）
+  const currentSourceRef = useRef<string>(initialData?.imageUrl || '');
+  // 使用者手動挑過顏色後，自動辨識不再覆蓋
+  const colorTouchedRef = useRef(false);
 
-  const handleImageSelect = async (file: File) => {
-    setImageFile(file);
+  const detectColor = async (source: string, seq: number) => {
+    try {
+      const colorResult = await extractDominantColor(source);
+      if (seq === imageSeqRef.current) {
+        setFormData(prev => ({ ...prev, color: colorResult.hex }));
+      }
+    } catch (err) {
+      console.warn('顏色偵測失敗:', err);
+    }
+  };
+
+  /** onlyEmpty：選圖後自動辨識只補空白欄位，不覆蓋使用者已填或已改的內容；手動按鈕則全部更新 */
+  const runAnalysis = async (source: string, apiKey: string, onlyEmpty = false) => {
+    const runId = ++analysisRunRef.current;
+    setIsAnalyzing(true);
+    setAnalysisError(null);
+
+    try {
+      const analysis = await analyzeClothingWithAI(source, apiKey);
+      if (runId !== analysisRunRef.current) return;
+
+      // 顏色以目前實際採用的圖片為準
+      let colorHex: string | null = null;
+      if (source === currentSourceRef.current && !(onlyEmpty && colorTouchedRef.current)) {
+        try {
+          colorHex = (await extractDominantColor(source)).hex;
+        } catch (err) {
+          console.warn('顏色偵測失敗:', err);
+        }
+        if (runId !== analysisRunRef.current) return;
+      }
+
+      setFormData(prev => {
+        const fill = (current: string, next: string | undefined, valid = true) =>
+          next && valid && !(onlyEmpty && current) ? next : current;
+        return {
+          ...prev,
+          color: colorHex ?? prev.color,
+          category: fill(prev.category, analysis.category, CATEGORY_OPTIONS.some(c => c.value === analysis.category)),
+          material: fill(prev.material, analysis.material, MATERIAL_OPTIONS.some(m => m.value === analysis.material)),
+          brand: fill(prev.brand, analysis.brand),
+          notes: fill(prev.notes, analysis.notes),
+        };
+      });
+    } catch (err) {
+      if (runId !== analysisRunRef.current) return;
+      console.error('分析失敗:', err);
+      setAnalysisError(err instanceof Error ? err.message : 'AI 分析失敗，請稍後再試');
+    } finally {
+      if (runId === analysisRunRef.current) setIsAnalyzing(false);
+    }
+  };
+
+  const handleImageSelect = (file: File) => {
+    const seq = ++imageSeqRef.current;
+    // 換圖：作廢前一次辨識／去背
+    analysisRunRef.current++;
+    setIsAnalyzing(false);
+    setIsRemovingBg(false);
     setAnalysisError(null);
     setBgRemoved(false);
+    setBgCache(null);
+    setImageFile(file);
+    setOriginalFile(file);
 
-    // 建立預覽
     const reader = new FileReader();
-    reader.onload = async (e) => {
+    reader.onload = (e) => {
+      if (seq !== imageSeqRef.current) return;
       const dataUrl = e.target?.result as string;
       setImagePreview(dataUrl);
+      setOriginalPreview(dataUrl);
+      currentSourceRef.current = dataUrl;
 
-      // 自動偵測顏色
-      try {
-        const colorResult = await extractDominantColor(dataUrl);
-        setFormData(prev => ({ ...prev, color: colorResult.hex }));
-      } catch (err) {
-        console.warn('顏色偵測失敗:', err);
-      }
+      detectColor(dataUrl, seq);
+
+      // 有 API Key 才自動辨識；沒有就不彈對話框
+      const apiKey = getAnthropicApiKey();
+      if (apiKey) runAnalysis(dataUrl, apiKey, true);
     };
     reader.readAsDataURL(file);
   };
 
-  const handleSmartAnalyze = async () => {
+  const handleSmartAnalyze = () => {
     const apiKey = getAnthropicApiKey();
     if (!apiKey) {
       setShowApiKeyModal(true);
       return;
     }
 
-    const imageSource = imagePreview || formData.imageUrl;
-    if (!imageSource) {
+    const source = currentSourceRef.current;
+    if (!source) {
       setAnalysisError('請先上傳圖片');
       return;
     }
+    runAnalysis(source, apiKey);
+  };
 
-    setIsAnalyzing(true);
-    setAnalysisError(null);
-
-    try {
-      // 先偵測顏色
-      const colorResult = await extractDominantColor(imageSource);
-
-      // 使用 AI 分析
-      const analysis = await analyzeClothingWithAI(imageSource, apiKey);
-
-      // 更新表單
-      setFormData(prev => ({
-        ...prev,
-        color: colorResult.hex,
-        category: analysis.category && CATEGORY_OPTIONS.some(c => c.value === analysis.category)
-          ? analysis.category
-          : prev.category,
-        material: analysis.material && MATERIAL_OPTIONS.some(m => m.value === analysis.material)
-          ? analysis.material
-          : prev.material,
-        brand: analysis.brand || prev.brand,
-        notes: analysis.notes || prev.notes,
-      }));
-
-    } catch (err) {
-      console.error('分析失敗:', err);
-      setAnalysisError(err instanceof Error ? err.message : 'AI 分析失敗，請稍後再試');
-    } finally {
-      setIsAnalyzing(false);
-    }
+  // 切換採用的圖片（去背版或原圖）
+  const applyImage = (file: File | null, preview: string | null, nobg: boolean) => {
+    const seq = ++imageSeqRef.current;
+    setImageFile(file);
+    setImagePreview(preview);
+    setBgRemoved(nobg);
+    const source = preview || formData.imageUrl;
+    currentSourceRef.current = source;
+    if (source) detectColor(source, seq);
   };
 
   const handleRemoveBackground = async () => {
-    const imageSource = imagePreview || formData.imageUrl;
-    if (!imageSource) return;
+    // 已有快取就直接套用
+    if (bgCache) {
+      applyImage(bgCache.file, bgCache.preview, true);
+      return;
+    }
 
+    const source = originalPreview || formData.imageUrl;
+    if (!source) return;
+
+    const seq = imageSeqRef.current;
     setIsRemovingBg(true);
+    setBgJobRunning(true);
     setBgRemovalProgress(0);
 
     try {
-      const resultBlob = await removeImageBackground(imageSource, (progress) => {
-        setBgRemovalProgress(progress);
+      const resultBlob = await removeImageBackground(source, (progress) => {
+        if (seq === imageSeqRef.current) setBgRemovalProgress(progress);
       });
+      if (seq !== imageSeqRef.current) return; // 期間已換圖
 
       const dataUrl = await blobToDataURL(resultBlob);
-      setImagePreview(dataUrl);
+      if (seq !== imageSeqRef.current) return;
 
-      // Create a new PNG File to replace the current imageFile
       const pngFile = new File([resultBlob], 'clothing-nobg.png', { type: 'image/png' });
-      setImageFile(pngFile);
-      setBgRemoved(true);
-
-      // Re-extract color from the processed image
-      try {
-        const colorResult = await extractDominantColor(dataUrl);
-        setFormData(prev => ({ ...prev, color: colorResult.hex }));
-      } catch (err) {
-        console.warn('去背後顏色偵測失敗:', err);
-      }
+      setBgCache({ file: pngFile, preview: dataUrl });
+      applyImage(pngFile, dataUrl, true);
     } catch (err) {
+      if (seq !== imageSeqRef.current) return;
       console.error('去背失敗:', err);
       setAnalysisError('去背處理失敗，請稍後再試');
     } finally {
-      setIsRemovingBg(false);
+      setBgJobRunning(false);
+      if (seq === imageSeqRef.current) setIsRemovingBg(false);
     }
   };
 
+  const handleRestoreOriginal = () => {
+    applyImage(originalFile, originalPreview, false);
+  };
+
   const handleSaveApiKey = () => {
-    if (apiKeyInput.trim()) {
-      setAnthropicApiKey(apiKeyInput.trim());
-      setHasApiKey(true);
-      setShowApiKeyModal(false);
-      setApiKeyInput('');
-      // 儲存後自動分析
-      setTimeout(handleSmartAnalyze, 100);
-    }
+    const key = apiKeyInput.trim();
+    if (!key) return;
+    setAnthropicApiKey(key);
+    setHasApiKey(true);
+    setShowApiKeyModal(false);
+    setApiKeyInput('');
+    // 儲存後自動分析（直接用剛存的 key 與最新圖片，不依賴舊 closure）
+    const source = currentSourceRef.current;
+    if (source) runAnalysis(source, key);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -170,6 +232,7 @@ export default function ClothingForm({ initialData, onSubmit, onCancel, isLoadin
   };
 
   const handleColorSelect = (color: string) => {
+    colorTouchedRef.current = true;
     setFormData({ ...formData, color });
     setShowCustomColor(false);
   };
@@ -214,40 +277,50 @@ export default function ClothingForm({ initialData, onSubmit, onCancel, isLoadin
                 </>
               )}
             </button>
-            <button
-              type="button"
-              onClick={handleRemoveBackground}
-              disabled={isRemovingBg || bgRemoved}
-              className={`w-full px-4 py-3 text-white rounded-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2 ${
-                bgRemoved
-                  ? 'bg-green-500'
-                  : 'bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600'
-              }`}
-            >
-              {isRemovingBg ? (
-                <>
-                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  去背中... {bgRemovalProgress}%
-                </>
-              ) : bgRemoved ? (
-                <>
+            {bgRemoved ? (
+              <div className="flex gap-2">
+                <div className="flex-1 px-4 py-3 bg-green-500 text-white rounded-lg flex items-center justify-center gap-2">
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                   已去背完成
-                </>
-              ) : (
-                <>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleRestoreOriginal}
+                  className="flex-1 px-4 py-3 border border-purple-300 text-purple-600 rounded-lg hover:bg-purple-50 transition-colors flex items-center justify-center gap-2"
+                >
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a5 5 0 010 10H9M3 10l4-4M3 10l4 4" />
                   </svg>
-                  自動去背
-                </>
-              )}
-            </button>
+                  還原原圖
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={handleRemoveBackground}
+                disabled={isRemovingBg || bgJobRunning}
+                className="w-full px-4 py-3 text-white rounded-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
+              >
+                {isRemovingBg ? (
+                  <>
+                    <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    去背中... {bgRemovalProgress}%
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    {bgCache ? '套用去背' : '自動去背'}
+                  </>
+                )}
+              </button>
+            )}
             {!hasApiKey && (
               <p className="text-xs text-gray-500 text-center">
                 首次使用需設定 Anthropic API Key
@@ -459,7 +532,8 @@ export default function ClothingForm({ initialData, onSubmit, onCancel, isLoadin
               className="w-5 h-5 rounded border border-gray-200"
               style={{ backgroundColor: formData.color }}
             />
-            <span>{formData.color}</span>
+            <span className="text-gray-700">{getColorName(formData.color)}</span>
+            <span className="text-xs text-gray-400">{formData.color}</span>
           </div>
         </div>
 
@@ -503,6 +577,13 @@ export default function ClothingForm({ initialData, onSubmit, onCancel, isLoadin
             className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-300 resize-none"
           />
         </div>
+
+        {/* 儲存錯誤（緊貼儲存按鈕上方，手機按下後立即可見） */}
+        {error && (
+          <div role="alert" className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+            {error}
+          </div>
+        )}
 
         {/* 按鈕 */}
         <div className="flex gap-3">
