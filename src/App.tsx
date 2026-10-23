@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import HomePage from './pages/HomePage';
 import AddClothingPage from './pages/AddClothingPage';
+import BatchAddPage from './pages/BatchAddPage';
 import ClothingDetailPage from './pages/ClothingDetailPage';
 import OutfitPage from './pages/OutfitPage';
 import { AuthProvider } from './contexts/AuthContext';
@@ -14,6 +15,7 @@ function App() {
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/add" element={<AddClothingPage />} />
+            <Route path="/add/batch" element={<BatchAddPage />} />
             <Route path="/clothing/:id" element={<ClothingDetailPage />} />
             <Route path="/outfit" element={<OutfitPage />} />
           </Routes>

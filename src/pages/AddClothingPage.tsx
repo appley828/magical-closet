@@ -46,6 +46,12 @@ export default function AddClothingPage() {
 
       {/* Main Content */}
       <main className="max-w-2xl mx-auto px-4 py-6">
+        <Link
+          to="/add/batch"
+          className="mb-4 block px-4 py-3 bg-white rounded-xl shadow-sm text-sm text-center text-pink-500 hover:bg-pink-50 transition-colors"
+        >
+          一次有很多件？改用批次新增（最多 6 張照片）
+        </Link>
         <div className="bg-white rounded-xl shadow-sm p-6">
           <ClothingForm
             onSubmit={handleSubmit}
